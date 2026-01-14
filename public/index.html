@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Chess Lite 10x10</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <h1>Chess Lite 10×10</h1>
+        <div id="status" class="status">Loading…</div>
+      </div>
+      <div class="actions">
+        <button id="resetBtn">Reset</button>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <div id="board" class="board" aria-label="Chess board"></div>
+
+      <section class="panel">
+        <h2>Rules in this build</h2>
+        <ul>
+          <li>Turn order enforced.</li>
+          <li>Piece moves validated (captures, blocking, etc.).</li>
+          <li><b>Prince</b> (Pr) moves like King: 1 step any direction.</li>
+          <li>No check/checkmate, castling, en passant, promotion.</li>
+        </ul>
+        <div id="message" class="message"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
