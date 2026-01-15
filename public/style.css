@@ -109,6 +109,9 @@ h1 { margin: 0; font-size: 18px; }
   margin-top: 10px;
   min-height: 20px;
   color: #111827;
+  border: 1px solid darkgrey;
+  padding: 3px 10px;
+  text-align: center;
 }
 
 .small {
@@ -136,15 +139,16 @@ h1 { margin: 0; font-size: 18px; }
 }
 
 #history h3 {
-  margin: 0 0 8px;
+  margin: 0 0 3px;
   font-size: 14px;
   color: var(--muted);
   letter-spacing: 0.2px;
 }
 
-#padding-left: 18px; /* keeps numbers aligned nicely */
+
 #moveLog {
-  margin: 3px;
+ padding-left: 18px; /* keeps numbers aligned nicely */
+ margin-top: 3px;
 }
 
 #moveLog li {
