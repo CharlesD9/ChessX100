@@ -87,7 +87,7 @@ h1 { margin: 0; font-size: 18px; }
   opacity: 0.9;
 }
 
-.square .prince {
+.square .noble {
   font-size: 0.65em;
   font-weight: 100;
 }
@@ -126,3 +126,30 @@ h1 { margin: 0; font-size: 18px; }
 .label-file { bottom: 4px; right: 6px; }
 .label-rank { top: 4px; left: 6px; }
 
+#history {
+  margin-top: 12px;
+  max-height: calc(var(--sq) * 10 + 16px); /* roughly match 10 squares + a bit */
+  overflow-y: auto;
+  padding-right: 6px; /* space so scrollbar doesn’t crowd text */
+  border-top: 1px solid #e5e7eb;
+  padding-top: 10px;
+}
+
+#history h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+}
+
+#padding-left: 18px; /* keeps numbers aligned nicely */
+#moveLog {
+  margin: 3px;
+}
+
+#moveLog li {
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 2px 0;
+  color: var(--text);
+}

@@ -11,8 +11,7 @@ const SIZE = 10;
 /**
  * Board representation:
  * board[r][c] where r=0 top (Black home rank), r=SIZE-1 bottom (White home rank).
- * Pieces are strings: "wP", "bK", etc.
- * Prince is "A": "wA" / "bA" and moves like King (1 step any direction).
+ * Noble is "A": "wA" / "bA" and moves like King (1 step any direction).
  */
 function initialBoard() {
   const board = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
@@ -22,10 +21,10 @@ function initialBoard() {
     `${color}R`,
     `${color}N`,
     `${color}B`,
-    `${color}A`, // Prince
+    `${color}A`, // Noble
     `${color}Q`,
     `${color}K`,
-    `${color}A`, // Prince
+    `${color}A`, // Noble
     `${color}B`,
     `${color}N`,
     `${color}R`
@@ -42,11 +41,36 @@ function initialBoard() {
   return board;
 }
 
+
+function toAlgebraic(r, c) {
+  const file = "abcdefghij"[c];
+  const rank = (SIZE - r).toString();
+  return file + rank;
+}
+
+function pieceToNotation(pieceType) {
+  switch (pieceType) {
+    case "P": return "";   // pawn
+    case "R": return "R";
+    case "B": return "B";
+    case "N": return "N";  
+    case "A": return "A";  
+    case "Q": return "Q";
+    case "K": return "K";  
+    default: return "";
+  }
+}
+
+
 const game = {
   size: SIZE,
   board: initialBoard(),
   turn: "w", // 'w' or 'b'
-  moveNumber: 1
+  moveNumber: 1, 
+  isOver: false,
+  enPassantTarget: null, // { r, c } square the opponent pawn can move INTO to capture en passant
+  enPassantPawn: null,    // { r, c } location of the pawn that would be captured
+  moves: []
 };
 
 function inBounds(r, c) {
@@ -74,7 +98,9 @@ function pathClear(board, from, to) {
   return true;
 }
 
-function isValidPawnMove(board, from, to, color) {
+//function isValidPawnMove(board, from, to, color) {
+function isValidPawnMove(board, from, to, color, enPassantTarget, enPassantPawn) {
+
   const dir = color === "w" ? -1 : 1;          // white goes up (toward r=0)
   const startRow = color === "w" ? SIZE - 2 : 1;
 
@@ -83,7 +109,7 @@ function isValidPawnMove(board, from, to, color) {
 
   const target = board[to.r][to.c];
 
-  // forward move (no capture)
+  // 1) forward move (no capture)
   if (dc === 0) {
     if (dr === dir && target === null) return true;
 
@@ -95,15 +121,38 @@ function isValidPawnMove(board, from, to, color) {
     return false;
   }
 
-  // diagonal capture
-  if (Math.abs(dc) === 1 && dr === dir) {
-    return target !== null && colorOf(target) !== color;
-  }
+  // diagonal capture - No en-passant
+  //if (Math.abs(dc) === 1 && dr === dir) {
+  //  return target !== null && colorOf(target) !== color;
+  //}
 
+  // 2) Normal diagonal capture
+  if (Math.abs(dc) === 1 && dr === dir) {
+    if (target !== null && colorOf(target) !== color) return true;
+
+    // 3) En passant capture: diagonal move into EMPTY square,
+    // but it must match enPassantTarget, and enPassantPawn must be adjacent.
+    if (
+      target === null &&
+      enPassantTarget &&
+      enPassantPawn &&
+      to.r === enPassantTarget.r &&
+      to.c === enPassantTarget.c &&
+      // the pawn being captured is the one that just double-stepped
+      enPassantPawn.r === from.r &&          // same row as capturing pawn started from
+      enPassantPawn.c === to.c               // pawn is in the file you move into
+    ) {
+      const victim = board[enPassantPawn.r][enPassantPawn.c];
+      if (victim && victim[1] === "P" && colorOf(victim) !== color) return true;
+    }
+
+    return false;
+  }
+  
   return false;
 }
 
-function isValidMove(board, from, to, turnColor) {
+function isValidMove(board, from, to, turnColor, enPassantTarget, enPassantPawn ) {
   if (!inBounds(from.r, from.c) || !inBounds(to.r, to.c)) {
     return { ok: false, reason: "Out of bounds." };
   }
@@ -133,7 +182,8 @@ function isValidMove(board, from, to, turnColor) {
 
   switch (pieceType) {
     case "P": {
-      const ok = isValidPawnMove(board, from, to, pieceColor);
+      //const ok = isValidPawnMove(board, from, to, pieceColor);
+      const ok = isValidPawnMove(board, from, to, pieceColor, enPassantTarget, enPassantPawn );
       return ok ? { ok: true } : { ok: false, reason: "Illegal pawn move." };
     }
 
@@ -164,9 +214,9 @@ function isValidMove(board, from, to, turnColor) {
     }
 
     case "A": {
-      // Prince: exactly like king (1 step any direction)
+      // Noble: exactly like king (1 step any direction)
       const ok = adr <= 1 && adc <= 1;
-      return ok ? { ok: true } : { ok: false, reason: "Illegal prince move." };
+      return ok ? { ok: true } : { ok: false, reason: "Illegal noble move." };
     }
 
     default:
@@ -179,29 +229,122 @@ app.get("/api/state", (req, res) => {
 });
 
 app.post("/api/move", (req, res) => {
+
+  if (game.isOver) {
+    return res.json({ ok: false, reason: "Game over. Reset to play again." });
+  }
+
   const { from, to } = req.body || {};
   if (!from || !to) return res.status(400).json({ ok: false, reason: "Missing from/to." });
 
-  const verdict = isValidMove(game.board, from, to, game.turn);
+  const piece = game.board[from.r][from.c];
+  const pieceType = typeOf(piece);
+  const isCapture = game.board[to.r][to.c] !== null;
+  const movingPiece = game.board[from.r][from.c];
+
+  const isPawn = pieceType === "P";
+  
+  // snapshot current EP state (this move may use it)
+  const epTarget = game.enPassantTarget;
+  const epPawn = game.enPassantPawn;
+  
+  const isEnPassantCapture =
+    isPawn &&
+    epTarget &&
+    epPawn &&
+    game.board[to.r][to.c] === null &&
+    Math.abs(to.c - from.c) === 1 &&
+    (to.r - from.r) === (movingPiece[0] === "w" ? -1 : 1) &&
+    to.r === epTarget.r &&
+    to.c === epTarget.c &&
+    epPawn.r === from.r &&
+    epPawn.c === to.c;
+
+  const verdict = isValidMove(game.board, from, to, game.turn, game.enPassantTarget, game.enPassantPawn);
   if (!verdict.ok) return res.json({ ok: false, reason: verdict.reason });
 
-  const movingPiece = game.board[from.r][from.c];
+  const captured = game.board[to.r][to.c]; // may be null
   game.board[to.r][to.c] = movingPiece;
   game.board[from.r][from.c] = null;
 
-  game.turn = game.turn === "w" ? "b" : "w";
-  if (game.turn === "w") game.moveNumber += 1;
+  if (isEnPassantCapture) {
+    game.board[epPawn.r][epPawn.c] = null; // remove the pawn that double-stepped last move
+  }
+
+  // Clear by default: EP is only available immediately after a double-step
+  game.enPassantTarget = null;
+  game.enPassantPawn = null;
+
+
+  // If THIS move was a pawn double-step, set EP target for the opponent
+  if (movingPiece[1] === "P") {
+    const dir = movingPiece[0] === "w" ? -1 : 1;
+    const startRow = movingPiece[0] === "w" ? SIZE - 2 : 1;
+  
+    if (from.r === startRow && Math.abs(to.r - from.r) === 2 && from.c === to.c) {
+      // The square "passed over" is the capture target
+      game.enPassantTarget = { r: from.r + dir, c: from.c };
+      // The pawn that can be captured is sitting at the destination
+      game.enPassantPawn = { r: to.r, c: to.c };
+    }
+  }
+   
+  let didPromote = false;
+  // Auto-promotion: pawn reaching the last rank becomes a queen
+  if (movingPiece[1] === "P") {
+    const promoteRow = movingPiece[0] === "w" ? 0 : (SIZE - 1);
+    if (to.r === promoteRow) {
+      game.board[to.r][to.c] = `${movingPiece[0]}Q`;
+      didPromote = true;
+      // (optional) mark it in move history later as "=Q"
+    }
+  }
+
+
+  if (captured && captured[1] === "K") {
+    game.isOver = true;
+  }
+
+  //if (!game.isOver) {
+    game.turn = game.turn === "w" ? "b" : "w";
+    if (game.turn === "w") game.moveNumber += 1;
+  //}
+
+  let notation = "";
+
+  // Pawn moves
+  if (pieceType === "P") {
+    if (isCapture) {
+      notation = toAlgebraic(from.r, from.c)[0] + "x" + toAlgebraic(to.r, to.c);
+    } else {
+      notation = toAlgebraic(to.r, to.c);
+    }
+  } else {
+    notation = pieceToNotation(pieceType);
+    if (isCapture) notation += "x";
+    notation += toAlgebraic(to.r, to.c);
+  }
+  if (game.isOver) notation += "#";
+  if (didPromote) notation += "=Q"; 
+  if (isEnPassantCapture) notation += " e.p.";
+
+  game.moves.push(notation);
 
   return res.json({ ok: true, game });
+
 });
 
 app.post("/api/reset", (req, res) => {
   game.board = initialBoard();
   game.turn = "w";
   game.moveNumber = 1;
+  game.isOver = false;
+  game.enPassantTarget = null;
+  game.enPassantPawn = null;
+  game.moves = [];
   res.json({ ok: true, game });
 });
 
 app.listen(PORT, () => {
-  console.log(`Chess Lite 10x10 running at http://localhost:${PORT}`);
+  console.log(`ChessX100 running at http://localhost:${PORT}`);
 });

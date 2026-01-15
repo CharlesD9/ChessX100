@@ -10,7 +10,7 @@ const PIECE_TO_UNICODE = {
   wK: "♔", wQ: "♕", wR: "♖", wB: "♗", wN: "♘", wP: "♙",
   bK: "♚", bQ: "♛", bR: "♜", bB: "♝", bN: "♞", bP: "♟",
 
-  // Prince (no standard chess Unicode piece): show as text
+  // Noble (no standard chess Unicode piece): show as star
   wA: "☆",
   bA: "★"
 };
@@ -39,9 +39,18 @@ async function fetchState() {
 function render() {
   if (!state) return;
 
+  const jsonString = JSON.stringify(state);
+  //statusEl.textContent = jsonString
+
   const size = state.size ?? 10;
   const turn = state.turn === "w" ? "White" : "Black";
-  statusEl.textContent = `Turn: ${turn} — Move ${state.moveNumber}`;
+
+  if (state.isOver) {
+    statusEl.textContent = `Game Over!`;
+  } else {
+    const turn = state.turn === "w" ? "White" : "Black";
+    statusEl.textContent = `Turn: ${turn} — Move ${state.moveNumber}`;
+  }
 
   boardEl.style.gridTemplateColumns = `repeat(${size}, var(--sq))`;
   boardEl.style.gridTemplateRows = `repeat(${size}, var(--sq))`;
@@ -61,8 +70,8 @@ function render() {
       if (!piece) {
         sq.textContent = "";
       } else if (piece.endsWith("A")) {
-        // Prince
-        sq.innerHTML = `<span class="prince">${PIECE_TO_UNICODE[piece] ?? piece}</span>`;
+        // Noble
+        sq.innerHTML = `<span class="noble">${PIECE_TO_UNICODE[piece] ?? piece}</span>`;
       } else {
         sq.textContent = PIECE_TO_UNICODE[piece] ?? piece;
       }
@@ -90,6 +99,16 @@ function render() {
       boardEl.appendChild(sq);
     }
   }
+
+  const moveLogEl = document.getElementById("moveLog");
+  moveLogEl.innerHTML = "";
+  (state.moves || []).forEach((m, i) => {
+    const li = document.createElement("li");
+    li.textContent = m;
+    moveLogEl.appendChild(li);
+  });
+
+
 }
 
 async function tryMove(from, to) {
