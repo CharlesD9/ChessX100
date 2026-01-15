@@ -41,11 +41,18 @@ h1 { margin: 0; font-size: 18px; }
 
 .wrap {
   display: grid;
-  grid-template-columns: auto 320px;
+  grid-template-columns: fit-content(100%) 320px;
   gap: 16px;
   padding: 20px;
   align-items: start;
 }
+
+@media (max-width: 1010px) {
+  .wrap {
+    grid-template-columns: 1fr;
+  }
+}
+
 
 .board {
   display: grid;
@@ -55,6 +62,9 @@ h1 { margin: 0; font-size: 18px; }
   border-radius: 12px;
   overflow: hidden;
   background: #111827;
+  width: fit-content;     /* shrink-wrap to the grid */
+  height: fit-content;
+  justify-self: center;   /* center in the left column */
 }
 
 .square {
@@ -147,8 +157,8 @@ h1 { margin: 0; font-size: 18px; }
 
 
 #moveLog {
- padding-left: 18px; /* keeps numbers aligned nicely */
  margin-top: 3px;
+ list-style-position: inside; /* markers live inside the box (won’t get cut) */
 }
 
 #moveLog li {
@@ -156,4 +166,8 @@ h1 { margin: 0; font-size: 18px; }
   line-height: 1.4;
   padding: 2px 0;
   color: var(--text);
+}
+
+#moveLog li:nth-child(even) {
+  background: #f3f4f6;
 }
